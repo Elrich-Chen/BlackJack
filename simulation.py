@@ -1,5 +1,5 @@
 
-PLAYER_HAND=0
+PLAYER_HAND= []
 DEALER_UP_CARD=0
 DEALER_HAND=0
 
@@ -7,8 +7,14 @@ DEALER_HAND=0
 deck = ["A",1,2,3,4,5,6,7,8,9,10,10,10,10] * 4 
 
 
-def is_bust():
-    return 
+def is_bust(PLAYER_HAND):
+    score = 0 
+    for card in PLAYER_HAND:
+        if card =="A":
+            score += 11
+        else:
+            score += card
+    return score > 21
 
 def cal_hand_val(hand):
     value = 0
