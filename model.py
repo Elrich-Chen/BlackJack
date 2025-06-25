@@ -1,5 +1,5 @@
 import torch
-import torch.nn as nn
+import torch.nn as nn    #nerual network
 import torch.nn.functional as F
 
 class BlackjackNet(nn.Module):
