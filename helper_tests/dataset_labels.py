@@ -2,7 +2,7 @@ from collections import Counter
 import pickle
 
 # Load dataset
-with open("dataset.pkl", "rb") as f:
+with open("balanced_dataset.pkl", "rb") as f:
     dataset = pickle.load(f)
 
 # Count how many are 'hit' (0) and 'stand' (1)

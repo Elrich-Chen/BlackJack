@@ -20,7 +20,7 @@ while not env.done:
     state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
 
     # Predict action (0 = hit, 1 = stand)
-    with torch.no_grad():
+    with torch.no_grad(): #turn off gradient descending
         prediction = model(state_tensor)
         action = torch.argmax(prediction).item()
 
