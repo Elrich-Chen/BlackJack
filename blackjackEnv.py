@@ -7,6 +7,10 @@ class BlackjackEnv:
         self.dealer_hand = []
         self.done = False  # Track if game is over
         self.reset()       # Start new round
+        self.split_active = False
+        self.player_hands = []
+        self.current_hand_index = 0
+        BLACKJACK = [10, "A"]
     
     def reset(self):
         """Starts a new round: shuffle deck, deal 2 cards each."""
@@ -77,15 +81,28 @@ class BlackjackEnv:
     
     def is_bust(self, hand):
         return self.calculate_hand_value(hand) > 21
+    
+    def handle_split_transition(self):
+        self.done = False
+        self.current_hand_index = 1
+        self.player_hands[0] = self.player_hand
+        self.player_hand = self.player_hands[1]
+        return self.get_state(), 0, False, {"Now playing the second hand"}
 
     """Trying to encapsualte all the helper functions needed in step"""
     def player_hits(self):
         self.player_hand.append(self.deck.pop())
         if self.is_bust(self.player_hand):
             self.done = True
+            if (self.split_active and self.current_hand_index == 0):
+                return self.handle_split_transition()
+            
+            elif self.current_hand_index == 1:
+                return self.compare_split_hands()
+
             return self.get_state(), -1, True, {"Player has Lost"}
         else:
-            return self.get_state(), 0, True, {}
+            return self.get_state(), 0, False, {}
     
     def dealer_hits(self):
         while self.calculate_hand_value(self.dealer_hand) < 17:
@@ -106,6 +123,27 @@ class BlackjackEnv:
         else:
             return self.get_state(), 0, True, {}   # Tie (push)
 
+    def compare_split_hands(self):
+        if (self.split_active and self.current_hand_index == 1):
+                self.dealer_hits()
+                
+                score = 0
+                self.player_hands[1] = self.player_hand
+
+                for hand in self.player_hands:
+                    if self.is_bust(hand):
+                        score += -1
+                    else:
+                        self.player_hand = hand
+                        _, temp, _ , _ = self.compare_hands()
+                        score += temp
+                score = (score/2)
+                self.split_active = False
+                self.done = True
+                return self.get_state(), score, True, {"Split hand done"}
+        else:
+            return self.get_state(), -1, False, {"Split hand done"}
+        
     def step(self, action):
         """ 
         Here our AI robot can now 'play' with the dealer by using the function {step()} 
@@ -117,13 +155,86 @@ class BlackjackEnv:
         also provides error checking for:
         in case the function is called by our AI model, but game has been completed
         """
+
         if self.done:
             return self.get_state(), 0, True, {}
+            
         if action == 0:
             #player has chosen to hit
             return self.player_hits()
-        else:
+        
+        elif action == 1:
             #player has chosen to stand
-            self.dealer_hits()
+
+            #split game
+            if (self.split_active and self.current_hand_index == 0):
+                return self.handle_split_transition()
+            
+            if (self.split_active and self.current_hand_index == 1):
+                return self.compare_split_hands()
+
             #return the state and who has won
+            self.dealer_hits()
             return self.compare_hands()
+        
+        elif action == 2:
+            #player has chosen to double
+            if len(self.player_hand) != 2:
+                self.done = True
+                return self.get_state(), -1, True, {}  # Dealer wins
+            else:
+                self.player_hand.append(self.deck.pop())
+                if (self.split_active and self.current_hand_index == 0):
+                        return self.handle_split_transition()
+                
+                elif (self.split_active and self.current_hand_index == 1):
+                    return self.compare_split_hands()
+                
+                else:
+                    if self.is_bust(self.player_hand):
+                        self.done = True
+                        return self.get_state(), -1, True, {"busted"}
+                    self.dealer_hits()
+                    return self.compare_hands()
+                
+        
+        elif action == 3:
+            #player has chosen to split
+            if len(self.player_hand) != 2 or self.player_hand[0] != self.player_hand[1]:
+                self.done=True
+                return self.get_state(), -1, True, {}  # Dealer wins
+            self.split_active = True
+            self.player_hands = [[self.player_hand[0], self.deck.pop()], [self.player_hand[1], self.deck.pop()]]
+            self.player_hand = self.player_hands[0]
+            return self.get_state(), 0, False, {"Split Started"}
+
+
+
+if __name__ == "__main__":
+    trial_game = BlackjackEnv()
+    while trial_game.player_hand[0] != trial_game.player_hand[1]:
+            trial_game.reset()
+
+
+    while not trial_game.done:
+        print(f"Player Hand : {trial_game.player_hand}")
+        print(f"Dealer Upcard : {trial_game.dealer_hand[0]}")
+        print("\n")
+
+        # Take action in the environment
+        state, reward, done, msg = trial_game.step(int(input("Enter 0, 1, 2, 3 for Hit, Stand, Double and Split : ")))
+        print(msg)
+
+        # Show the updated hand
+        print(f"Player hand: {trial_game.player_hand}")
+        print(f"Dealer hdgchhand: {trial_game.dealer_hand[0]}")
+        print("----------")
+    
+    print(f"Reward was {reward}")
+    print(f"Player hand: {trial_game.player_hands}")
+    print(f"Dealer hand: {trial_game.dealer_hand}")
+    print("----------")
+
+
+    
+            

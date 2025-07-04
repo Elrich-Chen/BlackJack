@@ -1,9 +1,11 @@
 import os
 import sys
-print(sys.path)
-print(os.path.abspath("."))
+print(sys.path) #all the different folders
 print("-------------------------------")
-
+print(os.path.abspath(".")) #absolute path of parent folder
+print("-------------------------------")
+sys.path.append(os.path.abspath("."))
+print("-------------------------------")
 import torch
 from blackjackEnv import BlackjackEnv
 from model import BlackjackNet
@@ -37,6 +39,6 @@ for trial in range(trials):
     else:
         draws += 1
 
-print(f"the win rate is {wins/10_000 *100} %")
+print(f"the win rate is {wins/10_000 *100} %") #it should be 44.smth percent
 print(f"the loss rate is {losses/10_000 *100} %")
 print(f"the draw rate is {draws/10_000 *100} %")
