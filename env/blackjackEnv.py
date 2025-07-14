@@ -86,7 +86,9 @@ class BlackjackEnv:
     def add_card(self):
         self.player_hand.append(self.deck.pop())
 
-    """ACTION 0: PLAYER CHOOSES TO HIT"""
+    """
+    ACTION 0: PLAYER CHOOSES TO HIT
+    """
     def handle_player_hit(self):
         self.add_card()
         self.done = self.check_bust(self.player_hand)
@@ -97,19 +99,25 @@ class BlackjackEnv:
         else:
             return self.get_state(), 0, False, {"Player has hit, and can still continue !"}
     
-    """DEFAULT ACTION: DEALER HITS"""
+    """
+    DEFAULT ACTION: DEALER HITS
+    """
     def dealer_hits(self):
         while self.calculate_hand_value(self.dealer_hand) < 17:
             self.dealer_hand.append(self.deck.pop())
 
-    """ACTION 1: PLAYER CHOOSES TO STAND"""
+    """
+    ACTION 1: PLAYER CHOOSES TO STAND
+    """
     def handle_player_stand(self):
         if (self.split_active):
             return self.handle_split_transition()
         self.dealer_hits()
         return self.compare_hands()
     
-    """ACTION 2: PLAYER CHOOSES TO DOUBLE"""
+    """
+    ACTION 2: PLAYER CHOOSES TO DOUBLE
+    """
     def handle_player_double(self):
         if len(self.player_hand) != 2:
             self.done = True
@@ -127,7 +135,9 @@ class BlackjackEnv:
             self.dealer_hits()
             return self.compare_hands()
             
-    """ACTION 3: PLAYER CHOOSES TO SPLIT"""
+    """
+    ACTION 3: PLAYER CHOOSES TO SPLIT
+    """
     def handle_player_split(self):
         if (
             len(self.player_hands) == 8 or 
@@ -194,7 +204,7 @@ class BlackjackEnv:
             score = 0
 
             for hand in self.player_hands:
-                if self.is_bust(hand):
+                if self.check_bust(hand):
                     score += -1
                 else:
                     self.player_hand = hand
@@ -221,7 +231,6 @@ class BlackjackEnv:
             return self.handle_player_split()
         else:
             return self.get_state(), -1, True, {"Invalid Game Option Chosen !"}
-
 
 
 if __name__ == "__main__":
