@@ -9,21 +9,26 @@ checkpoint_path = "checkpoints/blackjack_dqn.pth"
 agent.q_network.load_state_dict(torch.load(checkpoint_path))
 agent.q_network.eval()
 
-num_episodes = 10_000
+num_episodes = 50_000
 wins = 0
 losses = 0
 draws = 0
 total_reward = 0
+max_steps_per_episode = 50
+steps = 0
 actions_count = {0: 0, 1:0 , 2:0, 3:0}
 
 for episode in range(num_episodes):
     state = env.reset()
+    env.set_bet(10)
+    steps = 0
 
-    while not env.done:
+    while not env.done and steps < max_steps_per_episode:
         action = agent.select_action(state)
         actions_count[action] += 1  
         next_state, reward, done, msg = env.step(action)
         state = next_state
+        steps += 1
     
     total_reward += reward
     if reward >0:
@@ -40,5 +45,7 @@ print(f"Wins:             {wins}")
 print(f"Losses:           {losses}")
 print(f"Draws:            {draws}")
 print(f"Win Rate:         {wins / num_episodes:.2%}")
+print(f"Loss Rate:         {losses / num_episodes:.2%}")
+print(f"Draw Rate:         {draws / num_episodes:.2%}")
 print(f"Average Reward:   {total_reward / num_episodes:.2f}")
 print(f"Actions Count: {actions_count}")

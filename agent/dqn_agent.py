@@ -19,6 +19,13 @@ class DQN_Agent:
         self.device = torch.device(device)
 
         self.q_network = DQN().to(self.device)
+        self.target_network = DQN().to(self.device) 
+
+        self.target_network.load_state_dict(self.q_network.state_dict())
+        self.target_network.eval()  
+        self.train_step = 0
+        self.target_update_freq = 100  
+
         self.optimizer = optim.Adam(self.q_network.parameters(), lr=lr)
 
         if loss_type == "mse":
@@ -66,7 +73,7 @@ class DQN_Agent:
         q_values = self.q_network(states).gather(1, actions) #gathering values that the ai model has *previously* predicted. it goes by column and grabs the q-value based on the aciton index
 
         with torch.no_grad():
-            max_next_q = self.q_network(next_states).max(dim=1, keepdim=True)[0] #learn this
+            max_next_q = self.target_network(next_states).max(dim=1, keepdim=True)[0]
             target_q = rewards + self.gamma * max_next_q * (~dones) # remember that this is a np array or wtv of target_q values
 
         loss = self.loss_fn(q_values, target_q)
@@ -76,6 +83,10 @@ class DQN_Agent:
 
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
+        
+        self.train_step += 1
+        if self.train_step % self.target_update_freq == 0:
+            self.target_network.load_state_dict(self.q_network.state_dict())
     
     def store_experience(self, state, action, reward, next_state, done):
         self.replay_buffer.add(state, action, reward, next_state, done)

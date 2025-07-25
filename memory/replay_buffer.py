@@ -12,6 +12,7 @@ class Replay_Buffer:
             None
         """
         self.buffer = deque(maxlen=capacity)
+        self.actions_count = {0:0, 1:0, 2:0, 3:0}
     
     def add(self, state, action, reward, next_state, done):
         """
@@ -24,6 +25,7 @@ class Replay_Buffer:
             done (bool): Whether the episode ended after this step.
         """
         experience = (state, action, reward, next_state, done)
+        self.actions_count[action] += 1
         self.buffer.append(experience)
 
     def sample(self, batch_size: int):
@@ -50,3 +52,9 @@ class Replay_Buffer:
         Return the current size of the buffer.
         """
         return len(self.buffer)
+
+    def composition(self):
+        """
+        Return the mix of actions in the buffer
+        """
+        print(f"Actions count in buffer{self.actions_count}")
