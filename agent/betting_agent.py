@@ -8,8 +8,8 @@ from memory.replay_buffer import Replay_Buffer
 
 class Betting_Agent:
     def __init__(self, buffer_capacity=10000, batch_size=32,
-    gamma=0.99, lr=1e-3, epsilon_start=1.0, epsilon_min=0.1, 
-    epsilon_decay=0.995, device="cpu", loss_type="mse"):
+    gamma=0.99, lr=1e-3, epsilon_start=1.0, epsilon_min=0.05, 
+    epsilon_decay=0.999, device="cpu", loss_type="mse"):
         self.batch_size = batch_size
         self.gamma = gamma
         self.epsilon = epsilon_start
@@ -18,12 +18,12 @@ class Betting_Agent:
         device = "cuda" if torch.cuda.is_available() else "cpu"
         self.device = torch.device(device)
 
-        self.input_dim = 10
+        self.input_dim = 14
         self.action_dim = 5
         self.bet_sizes = [1, 2, 4, 8, 16]
 
-        self.q_network = Betting_DQN().to(self.device)
-        self.target_network = Betting_DQN().to(self.device) 
+        self.q_network = Betting_DQN(self.input_dim, 64, 5).to(self.device)
+        self.target_network = Betting_DQN(self.input_dim, 64, 5).to(self.device) 
 
         self.target_network.load_state_dict(self.q_network.state_dict())
         self.target_network.eval()  
@@ -45,7 +45,7 @@ class Betting_Agent:
         if random.random() < self.epsilon:
             action = random.randint(0, self.action_dim-1)
         else:
-            state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(1).to(self.device)
+            state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(self.device) #[batch size, input_features]
             q_values = self.q_network(state_tensor)
             action = torch.argmax(q_values).item()
         return action
@@ -55,13 +55,13 @@ class Betting_Agent:
         Store an experience tuple for replay training.
         We store action_index (0-4), not bet amount.
         """
-        self.memory.push(state, action_index, reward, next_state, done)
+        self.replay_buffer.add(state, action_index, reward, next_state, done)
     
-    def train_step(self):
+    def train(self):
         if len(self.replay_buffer) < self.batch_size:
             return
         
-        states, actions, rewards, next_states, dones = self.replay_buffer.sample(self.batch_size)
+        states, actions, rewards, next_states, dones = self.replay_buffer.sample_weighted(self.batch_size)
         states = torch.tensor(states, dtype=torch.float32).to(self.device)
         actions = torch.tensor(actions, dtype=torch.long).to(self.device)
         rewards = torch.tensor(rewards, dtype=torch.float32).to(self.device)
@@ -83,7 +83,7 @@ class Betting_Agent:
         self.optimizer.step()
 
         # Decay epsilon
-        if self.epsilon > self.epsilon_end:
+        if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
         self.train_step += 1

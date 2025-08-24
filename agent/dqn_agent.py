@@ -20,11 +20,12 @@ class DQN_Agent:
 
         self.q_network = DQN().to(self.device)
         self.target_network = DQN().to(self.device) 
+        self.action_dim = 4
 
         self.target_network.load_state_dict(self.q_network.state_dict())
         self.target_network.eval()  
         self.train_step = 0
-        self.target_update_freq = 100  
+        self.target_update_freq = 5000 
 
         self.optimizer = optim.Adam(self.q_network.parameters(), lr=lr)
 
@@ -37,16 +38,20 @@ class DQN_Agent:
 
         self.replay_buffer = Replay_Buffer(buffer_capacity)
     
-    def select_action(self, state):
+    def select_action(self, state, legal_actions=None):
         """
         Choose an action using epsilon-greedy
         """
         if random.random() < self.epsilon:
-            return random.randint(0,3)
+            return int(np.random.choice(legal_actions or range(self.action_dim)))
         else:
             state_tensor = torch.FloatTensor(state).unsqueeze(0).to(self.device)
             with torch.no_grad():
                 q_values = self.q_network(state_tensor)
+                if legal_actions is not None:
+                    mask = torch.full_like(q_values, float('-inf'))
+                    mask[0,legal_actions] = 0.0
+                    q_values += mask
             return q_values.argmax().item()
         
     def store_experience(self, state, action, reward, next_state, done):
@@ -62,7 +67,7 @@ class DQN_Agent:
         if len(self.replay_buffer) < 32:
             return
         
-        states, actions, rewards, next_states, dones = self.replay_buffer.sample(self.batch_size)
+        states, actions, rewards, next_states, dones = self.replay_buffer.sample_weighted(self.batch_size)
 
         states = torch.FloatTensor(states).to(self.device)
         actions = torch.LongTensor(actions).unsqueeze(1).to(self.device)
@@ -79,17 +84,51 @@ class DQN_Agent:
         loss = self.loss_fn(q_values, target_q)
         self.optimizer.zero_grad()
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.q_network.parameters(), 5.0)
         self.optimizer.step()
-
-        if self.epsilon > self.epsilon_min:
-            self.epsilon *= self.epsilon_decay
         
         self.train_step += 1
         if self.train_step % self.target_update_freq == 0:
             self.target_network.load_state_dict(self.q_network.state_dict())
     
-    def store_experience(self, state, action, reward, next_state, done):
-        self.replay_buffer.add(state, action, reward, next_state, done)
-    
+    def decay_eps_episode(self):
+        self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
 
         
+if __name__ == "__main__":
+    from collections import Counter
+    from env.blackjackEnv import BlackjackEnv
+    from env.highTCWrapper import HighTCWrapper
+
+    base = BlackjackEnv()
+    env  = HighTCWrapper(base, min_tc=3, prob=0.1, max_tries=150)
+
+    bins = Counter()
+    N = 5000
+    for _ in range(N):
+        env.reset()
+        tc = env.get_deck_distribution(betting=True)[-3]
+        bins[int(tc)] += 1
+
+    print("Starts by TC (rounded):")
+    for tc in sorted(bins.keys()):
+        count = bins[tc]
+        percentage = (count / N) * 100
+        print(f"  TC {tc:+3d}: {count:4d} times ({percentage:5.1f}%)")
+
+    print("\n tc wrapper done. now trying base env below")
+    base = BlackjackEnv()
+    env  = base
+
+    bins = Counter()
+    N = 5000
+    for _ in range(N):
+        env.reset()
+        tc = env.get_deck_distribution(betting=True)[-3]
+        bins[int(tc)] += 1
+
+    for tc in sorted(bins.keys()):
+        count = bins[tc]
+        percentage = (count / N) * 100
+        print(f"  TC {tc:+3d}: {count:4d} times ({percentage:5.1f}%)")
+    # You should see MANY more starts at 3, 4, 5+ than you’d get without the wrapper.
